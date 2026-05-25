@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="192" viewBox="0 0 192 192">
+  <rect width="192" height="192" rx="38.400000000000006" fill="#070B14"/>
+  <g transform="translate(96,96)">
+    <!-- Hexagon -->
+    <polygon points="0,-57.599999999999994 49.92,-28.799999999999997 49.92,28.799999999999997 0,57.599999999999994 -49.92,28.799999999999997 -49.92,-28.799999999999997"
+      fill="none" stroke="#00C896" stroke-width="5.76" stroke-linejoin="round"/>
+    <!-- Inner lines -->
+    <line x1="0" y1="-57.599999999999994" x2="0" y2="0" stroke="rgba(0,200,150,0.4)" stroke-width="2.88" stroke-linecap="round"/>
+    <line x1="0" y1="0" x2="49.92" y2="-28.799999999999997" stroke="rgba(0,200,150,0.4)" stroke-width="2.88" stroke-linecap="round"/>
+    <!-- L text -->
+    <text x="-15.36" y="19.200000000000003" font-family="sans-serif" font-weight="800" font-size="53.760000000000005" fill="#E2DDD0">L</text>
+  </g>
+</svg>

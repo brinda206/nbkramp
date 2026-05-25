@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.DS_Store
+*.log
+
+# Secrets — never commit these
+.env
+.env.local
+.env.production
+firebase-applet-config.json
+
+# Build artifacts
+coverage/
+.vite/

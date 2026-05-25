@@ -1,0 +1,19 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+      "module": "CommonJS",
+      "moduleResolution": "node",
+      "allowImportingTsExtensions": false,
+      "noEmit": false,
+      "outDir": "./cache/ts-output"
+    },
+    "include": [
+      "hardhat.config.ts",
+      "scripts/**/*.ts",
+      "test/**/*.ts",
+      "contracts/**/*.ts"
+    ],
+    "ts-node": {
+      "esm": false
+    }
+  }
