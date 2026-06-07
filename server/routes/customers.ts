@@ -1,11 +1,17 @@
 /**
- * server/routes/customers.ts — version multi-devises
+ * server/routes/customers.ts
  *
- * CHANGEMENTS :
- *   - POST /:uuid/transfers accepte EUR, GBP, CAD, CHF en plus de USD
- *   - Conversion automatique vers USD avant envoi à Harbor (toUSD())
- *   - Réseau destination choisi automatiquement (AUTO_NETWORK)
- *   - Metadata enrichie avec la devise originale pour traçabilité
+ * Gestion des customers Harbor + transactions multi-devises.
+ *
+ * ROUTES :
+ *   POST /api/customers            — créer un nouveau customer (KYC Harbor)
+ *   POST /api/customers/lookup     — retrouver un customer existant par email
+ *   GET  /api/customers/:uuid      — statut KYC
+ *   POST /api/customers/:uuid/transfers  — initier un transfer Harbor
+ *   GET  /api/customers/wallet/balance   — solde USDC platform
+ *   POST /api/customers/harbor-webhook  — événements Harbor
+ *   POST /api/customers/simulate-paid/:id      — sandbox
+ *   POST /api/customers/simulate-completed/:id — sandbox
  */
 import { Router, type Request, type Response } from 'express';
 import { supabase }              from '../lib/supabase.js';
@@ -81,6 +87,59 @@ export function createCustomerRouter(io: SocketServer) {
     }
   });
 
+
+  // ─── GET /api/customers/lookup?email=... ─────────────────────────────────────
+  // Client connu qui revient : retrouver son profil par email.
+  // Retourne harbor_uuid + statut KYC pour sauter le formulaire d'inscription.
+  router.get('/lookup', async (req: Request, res: Response) => {
+    const { email } = req.query as { email?: string };
+    if (!email) return res.status(400).json({ error: 'email requis' });
+
+    const emailHash = crypto
+      .createHash('sha256')
+      .update(email.trim().toLowerCase())
+      .digest('hex');
+
+    const { data: customer, error } = await (supabase as any)
+      .from('customers')
+      .select('harbor_uuid, first_name, last_name, kyc_status, verification_link')
+      .eq('email_hash', emailHash)
+      .single();
+
+    if (error || !customer) {
+      return res.status(404).json({ found: false });
+    }
+
+    // Rafraîchir le statut KYC depuis Harbor (au cas où il aurait changé)
+    let kycStatus  = customer.kyc_status;
+    let kycLink    = customer.verification_link ?? null;
+    let agreeLink  = null;
+
+    try {
+      const harborCustomer = await getCustomer(customer.harbor_uuid);
+      kycStatus = harborCustomer.status;
+      kycLink   = harborCustomer.kyc_link;
+      agreeLink = harborCustomer.agreement_link;
+
+      await (supabase as any)
+        .from('customers')
+        .update({ kyc_status: harborCustomer.status, updated_at: new Date().toISOString() })
+        .eq('harbor_uuid', customer.harbor_uuid);
+    } catch {
+      // Harbor indisponible — on utilise le statut en DB
+    }
+
+    res.json({
+      found:          true,
+      harbor_uuid:    customer.harbor_uuid,
+      first_name:     customer.first_name,
+      last_name:      customer.last_name,
+      kyc_status:     kycStatus,
+      kyc_link:       kycLink,
+      agreement_link: agreeLink,
+    });
+  });
+
   // ─── GET /api/customers/wallet/balance ────────────────────────────────────
   router.get('/wallet/balance', async (_req: Request, res: Response) => {
     try {
@@ -101,10 +160,13 @@ export function createCustomerRouter(io: SocketServer) {
         .eq('harbor_uuid', req.params.uuid);
 
       res.json({
-        uuid:         customer.uuid,
-        kyc_status:   customer.status,
-        can_transfer: HARBOR_ACTIVE_CUSTOMER_STATUSES.includes(customer.status),
-        kyc_link:     customer.kyc_link,
+        uuid:           customer.uuid,
+        harbor_uuid:    customer.uuid,   // alias explicite pour le frontend
+        kyc_status:     customer.status,
+        status:         customer.status, // alias pour compatibilité
+        can_transfer:   HARBOR_ACTIVE_CUSTOMER_STATUSES.includes(customer.status),
+        kyc_link:       customer.kyc_link,
+        agreement_link: customer.agreement_link,
       });
     } catch (err: any) {
       res.status(404).json({ error: err.message });
@@ -114,10 +176,11 @@ export function createCustomerRouter(io: SocketServer) {
   // ─── POST /api/customers/:uuid/transfers ───────────────────────────────────
   router.post('/:uuid/transfers', async (req: Request, res: Response) => {
     const {
-      amount,           // montant dans la devise de l'utilisateur
-      currency = 'USD', // devise de l'utilisateur : USD | EUR | GBP | CAD | CHF
+      amount,
+      currency = 'USD',
       reference,
       beneficiary_phone,
+      payment_method = 'wire', // 'wire' | 'debit_card'
     } = req.body;
 
     // Validation devise
@@ -176,6 +239,7 @@ export function createCustomerRouter(io: SocketServer) {
         amount_usd:                amountUSD.toFixed(2),
         destination_address:       PLATFORM_WALLET,
         transfer_purpose:          'family_support',
+        payment_method:            payment_method as 'wire' | 'debit_card',
       });
 
       // ── Mettre à jour la transaction en base ────────────────────────────────
@@ -199,11 +263,18 @@ export function createCustomerRouter(io: SocketServer) {
         })
         .eq('reference', reference.toUpperCase());
 
+      // Pour le paiement carte, Harbor retourne card_payment_url au lieu de transfer_instructions
+      const isCard = payment_method === 'debit_card';
+      const harborTransfer = transfer as any;
+
       res.json({
-        transfer_uuid:  transfer.uuid,
-        status:         transfer.status,
-        // Instructions bancaires à afficher à l'utilisateur
-        transfer_instructions: transfer.transfer_instructions,
+        transfer_uuid:    transfer.uuid,
+        status:           transfer.status,
+        payment_method,
+        // Wire : instructions bancaires
+        transfer_instructions: harborTransfer.transfer_instructions,
+        // Carte : URL de paiement Visa Direct
+        card_payment_url: harborTransfer.card_payment_url ?? null,
         // Montants pour l'affichage
         original_amount:   originalAmount,
         original_currency: originalCurrency,

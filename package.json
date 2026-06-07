@@ -1,27 +1,19 @@
 {
-  "name": "luma-ramp",
+  "name": "nbk-finance-ramp",
   "private": true,
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
-    "dev":             "tsx server/index.ts",
-    "build":           "vite build",
-    "preview":         "vite preview",
-    "lint":            "tsc --noEmit",
-    "clean":           "rm -rf dist",
-    "deploy:amoy":     "npx hardhat run scripts/deploy.cjs --network amoy",
-    "deploy:polygon":  "npx hardhat run scripts/deploy.cjs --network polygon",
-    "hardhat:node":    "npx hardhat node",
-    "hardhat:compile": "npx hardhat compile",
-    "hardhat:test":    "npx hardhat test"
+    "dev":    "tsx server/index.ts",
+    "build":  "vite build",
+    "preview": "vite preview",
+    "lint":   "tsc --noEmit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.46.0",
     "@tailwindcss/vite":     "^4.1.14",
     "@vitejs/plugin-react":  "^5.0.4",
-    "clsx":                  "^2.1.1",
     "dotenv":                "^17.2.3",
-    "ethers":                "^6.16.0",
     "express":               "^4.21.2",
     "lucide-react":          "^0.546.0",
     "motion":                "^12.23.24",
@@ -30,19 +22,13 @@
     "socket.io":             "^4.8.3",
     "socket.io-client":      "^4.8.3",
     "sonner":                "^2.0.7",
-    "tailwind-merge":        "^3.5.0",
+    "tailwindcss":           "^4.1.14",
     "vite":                  "^6.2.0"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
     "@types/express":   "^4.17.21",
     "@types/node":      "^22.14.0",
     "@types/react-dom": "^19.2.3",
-    "autoprefixer":     "^10.4.21",
-    "cross-env":        "^7.0.3",
-    "hardhat":          "^2.28.6",
-    "tailwindcss":      "^4.1.14",
-    "ts-node":          "^10.9.2",
     "tsx":              "^4.21.0",
     "typescript":       "~5.8.2"
   }
